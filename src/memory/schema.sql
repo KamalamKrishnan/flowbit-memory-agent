@@ -48,6 +48,9 @@ CREATE TABLE IF NOT EXISTS resolution_memory (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     invoice_id TEXT,
     vendor TEXT,
+    field TEXT,
+    from_value TEXT,
+    to_value TEXT,
     decision TEXT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
 );

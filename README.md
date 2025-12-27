@@ -16,6 +16,12 @@ The system:
 - Confidence scoring and reasoning for decisions.
 - Demo script for showcasing learning over multiple invoices.
 
+## Memory Lifecycle
+1. Learn from human correction
+2. Store resolution
+3. Apply automatically
+4. Decay confidence over time
+
 ## Tech Stack
 - TypeScript (strict mode)
 - Node.js runtime

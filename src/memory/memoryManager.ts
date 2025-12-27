@@ -5,6 +5,7 @@ import {
     learnCorrectionMemory
 } from "./correctionMemory";
 import { applyVendorMemory, learnVendorMemory } from "./vendorMemory";
+import { getResolutionStats } from "./resolutionMemory";
 import { db } from "./db";
 import crypto from "crypto";
 
@@ -40,11 +41,7 @@ function storeProcessedInvoice(
          (invoice_id, vendor, invoice_number, invoice_date, content_hash)
          VALUES (?, ?, ?, ?, ?)`,
         [invoiceId, vendor, invoiceNumber, invoiceDate, contentHash],
-        (err) => {
-            if (err) {
-                console.error("Error storing processed invoice:", err);
-            }
-        }
+        () => { }
     );
 }
 
@@ -60,11 +57,11 @@ function generateContentHash(fields: any): string {
 // ─────────────────────────────────────────────
 export async function processInvoice(
     invoice: any,
-    humanCorrections: any[] = []
+    humanCorrections: any[] = [],
+    auditTrail: AuditEntry[] = []
 ): Promise<ProcessedInvoice> {
 
     loadHumanCorrections();
-    const auditTrail: AuditEntry[] = [];
 
     // STEP 0 — DUPLICATE CHECK
     const isDuplicate = await checkDuplicateInvoice(
@@ -93,7 +90,12 @@ export async function processInvoice(
     let updatedInvoice = { ...invoice.fields };
     let memoryUpdates: string[] = [];
     let reasoning = "";
+
+    // ─────────────────────────────────────────
+    // BASE CONFIDENCE + DECAY (PHASE 2)
+    // ─────────────────────────────────────────
     let confidenceScore = 0.5;
+    confidenceScore = Math.max(0.4, confidenceScore - 0.05);
 
     // STEP 1 — APPLY VENDOR MEMORY
     const vendorResult = await applyVendorMemory(
@@ -120,7 +122,25 @@ export async function processInvoice(
     reasoning += correctionResult.reasoning;
     confidenceScore = Math.max(confidenceScore, correctionResult.confidenceScore);
 
-    // STEP 3 — LEARN FROM HUMAN CORRECTIONS
+    // STEP 3 — RESOLUTION MEMORY (PHASE 1)
+    const resolutionStats = await getResolutionStats(invoice.vendor);
+
+    if (resolutionStats.rejectionRatio > 0.4) {
+        confidenceScore -= 0.3;
+
+        auditTrail.push({
+            step: "decide",
+            timestamp: new Date().toISOString(),
+            details: `High rejection ratio detected (${resolutionStats.rejectionRatio.toFixed(
+                2
+            )}) from past resolutions`
+        });
+
+        reasoning +=
+            " Past human resolutions indicate frequent rejection. ";
+    }
+
+    // STEP 4 — LEARN FROM HUMAN CORRECTIONS
     for (const hc of humanCorrections) {
         await learnCorrectionMemory(
             invoice.vendor,
@@ -130,7 +150,6 @@ export async function processInvoice(
             hc.reason
         );
 
-        // 🔥 Learn vendor regex
         await learnVendorMemory(
             invoice.vendor,
             hc.field,
@@ -140,14 +159,13 @@ export async function processInvoice(
         auditTrail.push({
             step: "learn",
             timestamp: new Date().toISOString(),
-            details: `Learned vendor memory for ${hc.field}`
+            details: `Learned correction + vendor memory for ${hc.field}`
         });
 
         confidenceScore = Math.min(1.0, confidenceScore + 0.1);
     }
 
-    // STEP 4 — STORE INVOICE
-    // If you want invoiceId unique, consider generating a UUID or use invoiceNumber
+    // STEP 5 — STORE INVOICE
     const invoiceId = invoice.fields.invoiceNumber;
 
     storeProcessedInvoice(
@@ -162,7 +180,7 @@ export async function processInvoice(
         normalizedInvoice: updatedInvoice,
         proposedCorrections: correctionResult.proposedCorrections,
         requiresHumanReview: confidenceScore < 0.8,
-        reasoning: reasoning || "Processed using dynamic vendor memory",
+        reasoning: reasoning || "Processed using learned memory",
         confidenceScore,
         memoryUpdates,
         auditTrail

@@ -1,14 +1,19 @@
 import { initializeDB } from "./memory/db";
 import { processInvoice } from "./memory/memoryManager";
+import { recordResolution } from "./memory/resolutionMemory";
+import { applyMemoryDecay } from "./memory/decayManager";
+import { AuditEntry } from "./memory/types";
 
 async function main() {
-    // Initialize DB & schema (safe to call every run)
     initializeDB();
+
+    // Apply memory decay BEFORE processing (important)
+    applyMemoryDecay();
 
     const sampleInvoice = {
         vendor: "Supplier GmbH",
         fields: {
-            invoiceNumber: "INV-2024-021", // ⚠️ change this for every new invoice
+            invoiceNumber: "INV-2024-028", // change the invoiveNumber for each run 
             invoiceDate: "12.01.2024",
             serviceDate: null,
             currency: "EUR",
@@ -27,32 +32,49 @@ Leistungsdatum: 01.01.2024
 `
     };
 
-    /**
-     * 🔴 IMPORTANT WORKFLOW
-     *
-     * FIRST RUN (TEACH THE SYSTEM):
-     * --------------------------------
-     * const humanCorrections = [
-     *   {
-     *     field: "serviceDate",
-     *     fromValue: null,
-     *     toValue: "01.01.2024",
-     *     reason: "Verified from invoice"
-     *   }
-     * ];
-     *
-     * SECOND RUN ONWARDS (AUTOMATIC):
-     * --------------------------------
-     * const humanCorrections = [];
-     */
+    const humanCorrections = [
+        // Uncomment ONLY on first learning run
+        //{
+        //    field: "serviceDate",
+        //    fromValue: null,
+        //    toValue: "01.01.2024",
+        //    reason: "Verified from invoice"
+        //}
+    ];
 
-    const humanCorrections = []; // ✅ keep empty after learning once
+    const auditTrail: AuditEntry[] = [];
 
-    const result = await processInvoice(sampleInvoice, humanCorrections);
+    const result = await processInvoice(
+        sampleInvoice,
+        humanCorrections,
+        auditTrail
+    );
+
+    // Invoice-level resolution
+    if (humanCorrections.length > 0) {
+        await recordResolution(
+            sampleInvoice.fields.invoiceNumber,
+            sampleInvoice.vendor,
+            "approved"
+        );
+
+        auditTrail.push({
+            step: "learn",
+            timestamp: new Date().toISOString(),
+            details: "Invoice-level resolution approved by human"
+        });
+    }
 
     console.log(
         "Processed Invoice Result:",
-        JSON.stringify(result, null, 2)
+        JSON.stringify(
+            {
+                ...result,
+                auditTrail
+            },
+            null,
+            2
+        )
     );
 }
 
