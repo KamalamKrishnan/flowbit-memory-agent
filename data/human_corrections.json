@@ -1,0 +1,20 @@
+[
+    {
+        "vendor": "Supplier GmbH",
+        "corrections": [
+            {
+                "field": "serviceDate",
+                "from": null,
+                "to": "12.01.2024",
+                "reason": "Default serviceDate applied"
+            },
+            {
+                "field": "lineItems[0].unitPrice",
+                "from": 25,
+                "to": 26,
+                "reason": "Updated unit price correction"
+            }
+        ],
+        "finalDecision": "Approved"
+    }
+]
