@@ -1,0 +1,31 @@
+# Node modules
+node_modules/
+
+# Build output folders
+dist/
+build/
+
+# Environment variables
+.env
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VSCode settings
+.vscode/
+
+# Data files (your human corrections file)
+data/human_corrections.json
+
+# Optional: lock files (usually you want these tracked, so comment out if unsure)
+# package-lock.json
+# yarn.lock
+
+# Optional: output from TS compiler
+*.tsbuildinfo
