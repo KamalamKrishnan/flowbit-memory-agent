@@ -13,7 +13,7 @@ async function main() {
     const sampleInvoice = {
         vendor: "Supplier GmbH",
         fields: {
-            invoiceNumber: "INV-2024-028", // change the invoiveNumber for each run 
+            invoiceNumber: "INV-2024-037", // change the invoiveNumber for each run 
             invoiceDate: "12.01.2024",
             serviceDate: null,
             currency: "EUR",
