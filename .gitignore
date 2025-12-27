@@ -29,3 +29,6 @@ data/human_corrections.json
 
 # Optional: output from TS compiler
 *.tsbuildinfo
+
+#Large video files
+*.mp4
